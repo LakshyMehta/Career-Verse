@@ -23,7 +23,16 @@ const connectDB = async () => {
     if (!mongoURI) {
       throw new Error('MongoDB URI is not defined in environment variables');
     }
-    const conn = await mongoose.connect(mongoURI);
+
+    // Options for MongoDB connection
+    const options = {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 50000, // Increase timeout to 50 seconds
+    };
+
+    // Attempt to connect to MongoDB
+    const conn = await mongoose.connect(mongoURI, options);
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error(`MongoDB Connection Error: ${error.message}`);
@@ -34,6 +43,9 @@ const connectDB = async () => {
 connectDB();
 
 const app = express();
+
+
+
 
 // Middleware
 app.use(cors()); // Enable CORS for all origins (adjust for production)
