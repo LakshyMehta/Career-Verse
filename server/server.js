@@ -9,7 +9,13 @@ const multer = require("multer"); // Needed for file upload handling
 // Load env vars
 dotenv.config();
 
-// MongoDB connection
+// Route Files
+const authRoutes = require("./routes/auth.routes");
+const jobRoutes = require("./routes/job.routes");
+const applicationRoutes = require("./routes/application.routes");
+const adminRoutes = require("./routes/admin.routes");
+
+// Connect to MongoDB
 const connectDB = async () => {
   try {
     // Check if MONGODB_URI exists in environment variables
@@ -21,15 +27,8 @@ const connectDB = async () => {
     // Log the Mongo URI for debugging (be careful with logs in production)
     console.log('Mongo URI:', mongoURI);
 
-    // Options for MongoDB connection
-    const options = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 50000, // Increase timeout to 50 seconds
-    };
-
-    // Attempt to connect to MongoDB
-    const conn = await mongoose.connect(mongoURI, options);
+    // Attempt to connect to MongoDB (no need for deprecated options)
+    const conn = await mongoose.connect(mongoURI);
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error(`MongoDB Connection Error: ${error.message}`);
@@ -57,12 +56,18 @@ if (!fs.existsSync(uploadsPath)) {
 }
 app.use("/uploads", express.static(uploadsPath));
 console.log(`Serving static files from: ${uploadsPath} at /uploads`);
+// Access CVs via: http://<your_server_address>:<port>/uploads/<filename_stored_in_db>
+// You might want to protect this route with auth/authz middleware depending on requirements.
+
+// Option 2: (Alternative - More Secure) Create a protected route to download CVs
+// This would involve a new route like GET /api/applications/:id/cv that reads the file
+// using fs.createReadStream and pipes it to the response after checking authorization.
 
 // Mount Routers
-app.use("/api/auth", require("./routes/auth.routes"));
-app.use("/api/jobs", require("./routes/job.routes"));
-app.use("/api/applications", require("./routes/application.routes"));
-app.use("/api/admin", require("./routes/admin.routes"));
+app.use("/api/auth", authRoutes);
+app.use("/api/jobs", jobRoutes);
+app.use("/api/applications", applicationRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Basic Root Route
 app.get("/", (req, res) => {
@@ -83,10 +88,12 @@ app.use((err, req, res, next) => {
         .status(400)
         .json({ message: err.message || "Invalid file type provided." });
     }
+    // Handle other Multer errors if necessary
     return res
       .status(400)
       .json({ message: `File upload error: ${err.message}` });
   } else if (err) {
+    // Handle other errors (like validation errors passed via next(err))
     console.error("Unhandled Error:", err); // Log the error for debugging
     return res
       .status(err.status || 500)
